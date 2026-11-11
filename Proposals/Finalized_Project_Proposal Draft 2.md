@@ -130,6 +130,8 @@ Rathke (2017) showed that distance and angle improve goal prediction and used go
 
 ## References
 
+Anthropic. (2026). *Claude* (Opus 5.5 version) [Large language model]. https://claude.ai. Used to help develop and explain the shot angle, shooting lane and percent of goal open calculations.
+
 Anzer, G., & Bauer, P. (2021). A goal scoring probability model for shots based on synchronized positional and event data in football (soccer). *Frontiers in Sports and Active Living, 3*, 624475. https://doi.org/10.3389/fspor.2021.624475
 
 Brechot, M., & Flepp, R. (2020). Dealing with randomness in match outcomes: How to rethink performance evaluation in European club football using expected goals. *Journal of Sports Economics, 21*(4), 335–362. https://doi.org/10.1177/1527002519897962
