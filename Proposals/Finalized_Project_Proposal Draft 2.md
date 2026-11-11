@@ -38,7 +38,7 @@ subtitle: "DSE6311 Finalized Project Proposal (DRAFT)"
 
 Goals are rare in soccer, so a few deflections, good saves or missed chances can change how a whole season looks. Clubs still judge teams on recent results, which can lead to bad decisions, like firing a coach whose team creates good chances but fails to finish them (Brechot & Flepp, 2020). Expected goals (xG), the probability that a shot becomes a goal, helps separate chance creation from finishing and bad luck. Mead et al. (2023) found that xG predicts future success better than goals or shot totals, and Liverpool used similar analysis to argue that Jürgen Klopp's poor final season at Dortmund was mostly bad luck before hiring him (Schoenfeld, 2019).
 
-**Research question.** *Which characteristics of a shot (where it is taken, how the chance was created, and what the defense looks like at that moment) best predict its probability of becoming a goal? As a secondary question, once chance quality is accounted for, which players consistently finish better or worse than expected?*
+**Research question.** *Which characteristics of a shot (where it is taken, how the chance was created, and what the defense looks like at that moment) best predict its probability of becoming a goal?*
 
 Our primary objective is a well-calibrated predictive xG model. Evaluating player finishing against that model is a secondary application, and we will not interpret the model's features as causes. The model will help coaching staff identify better chances, while the finishing analysis can help the front office evaluate players.
 
@@ -49,10 +49,6 @@ Rathke (2017) showed that distance and angle improve goal prediction and used go
 **Hypothesis 1 (shot quality).** A shot's chance of scoring depends on distance, angle, and the positions of defenders and the goalkeeper. These factors matter because they determine how much of the goal the shooter can actually aim at. How the chance was created also matters.
 
 *Prediction 1.* Adding freeze-frame and build-up features should lower log loss and Brier score on unseen matches compared with a location-only model, and defensive pressure should matter once distance is accounted for (Appendix B4).
-
-**Hypothesis 2 (finishing).** Much of the difference between a player's goals and xG over one season is likely due to luck, especially for players who take fewer shots.
-
-*Prediction 2.* A player's goals minus xG per shot in odd and even numbered matches will be only weakly related, and empirical Bayes shrinkage will pull most players toward average, leaving only a few high-volume shooters standing out.
 
 ## Data & Methods
 
