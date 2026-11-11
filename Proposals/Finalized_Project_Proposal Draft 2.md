@@ -36,117 +36,97 @@ subtitle: "DSE6311 Finalized Project Proposal (DRAFT)"
 
 ## Background & Project Question
 
-Goals are rare in soccer, so a few deflections, good saves or missed chances can change how a whole season looks. Even so, clubs often judge teams on recent results, which can lead to bad decisions, like firing a coach whose team creates good chances but fails to finish them (Brechot & Flepp, 2020). Before changing anything, a club needs to know whether its problems come from chance creation, poor finishing or simply bad luck.
+Goals are rare in soccer, so a few deflections, good saves or missed chances can change how a whole season looks. Clubs still judge teams on recent results, which can lead to bad decisions, like firing a coach whose team creates good chances but fails to finish them (Brechot & Flepp, 2020). Expected goals (xG), the probability that a shot becomes a goal, helps separate chance creation from finishing and bad luck. Mead et al. (2023) found that xG predicts future success better than goals or shot totals, and Liverpool used similar analysis to argue that Jürgen Klopp's poor final season at Dortmund was mostly bad luck before hiring him (Schoenfeld, 2019).
 
-Expected goals (xG) helps separate poor chance creation from poor finishing by estimating the probability that each shot becomes a goal. Adding up these probabilities shows how many goals a team would be expected to score from its chances. Mead et al. (2023) found that xG predicts future success better than goals or shot totals. Liverpool also used data analysis to argue that Jürgen Klopp's poor final season at Dortmund was mostly bad luck, which helped make the case for hiring him (Schoenfeld, 2019).
+**Research question.** *Which characteristics of a shot (where it is taken, how the chance was created, and what the defense looks like at that moment) best predict its probability of becoming a goal? As a secondary question, once chance quality is accounted for, which players consistently finish better or worse than expected?*
 
-**Research question.** *Which characteristics of a shot (where it is taken, how the chance was created, and what the defense looks like at that moment) best predict how likely it is to be a goal? And once chance quality is accounted for, which players consistently finish better or worse than expected?*
+Our primary objective is a well-calibrated predictive xG model. Evaluating player finishing against that model is a secondary application, and we will not interpret the model's features as causes. The model will help coaching staff identify better chances, while the finishing analysis can help the front office evaluate players.
 
-The xG model will help coaching staff identify better scoring opportunities, while comparing players' goals to their xG can help the front office evaluate finishing.
+This is a challenging data science problem because only about one in ten non-penalty shots results in a goal. Our model needs to produce well-calibrated probabilities rather than simply predicting whether a shot will go in. Since the same players and matches appear throughout the dataset, we also need to split the data carefully to avoid leakage.
 
-This is a challenging data science problem. Only about one in ten non-penalty shots results in a goal, making the data highly imbalanced. Our model needs to produce well-calibrated probabilities rather than simply predicting goals or misses. Since the same players and matches appear throughout the dataset, we also need to split the data carefully to avoid leakage.
+Rathke (2017) showed that distance and angle improve goal prediction and used goals minus xG to evaluate players, while Lucey et al. (2015) and Anzer and Bauer (2021) found that adding defender and goalkeeper positions improves location-only models. We apply these approaches to a nearly complete dataset covering four leagues, testing whether freeze-frame features (player positions at the moment of the shot) improve predictions and whether one season is enough to separate finishing skill from luck.
 
-Rathke (2017) showed that shot distance and angle improve goal prediction and used goals minus xG to evaluate players. Lucey et al. (2015) and Anzer and Bauer (2021) found that adding defender and goalkeeper positions improves location-only models. We plan to apply these approaches to a nearly complete dataset covering four leagues, examine whether freeze-frame features (player positions at the moment of the shot) improve predictions, and determine whether one season is enough to distinguish finishing skill from luck.
+**Hypothesis 1 (shot quality).** A shot's chance of scoring depends on distance, angle, and the positions of defenders and the goalkeeper. These factors matter because they determine how much of the goal the shooter can actually aim at. How the chance was created also matters.
 
-**Hypothesis 1 (shot quality).** A shot's chance of scoring depends on distance, angle, and how much of the goal is blocked by defenders and the goalkeeper, because together these determine how much of the goal the shooter can actually aim at. How the chance was created also matters, since certain passes can leave the shooter with a better opportunity.
-
-*Prediction 1.* Adding freeze-frame and build-up features should lower log loss and Brier score on matches the model has not seen, compared with a model that only uses shot location. We also expect defensive pressure to matter once distance is taken into account (Appendix B4).
+*Prediction 1.* Adding freeze-frame and build-up features should lower log loss and Brier score on unseen matches compared with a location-only model, and defensive pressure should matter once distance is accounted for (Appendix B4).
 
 **Hypothesis 2 (finishing).** Much of the difference between a player's goals and xG over one season is likely due to luck, especially for players who take fewer shots.
 
-*Prediction 2.* We expect a weak relationship between a player's goals minus xG per shot in odd and even numbered matches. Using empirical Bayes shrinkage should bring most players closer to average, with only a few high-volume shooters standing out.
-
-Since our model predicts scoring probability, we won't treat these relationships as proof that one factor directly causes another.
+*Prediction 2.* A player's goals minus xG per shot in odd and even numbered matches will be only weakly related, and empirical Bayes shrinkage will pull most players toward average, leaving only a few high-volume shooters standing out.
 
 ## Data & Methods
 
-**Data sources.** Our data come from StatsBomb Open Data (StatsBomb, 2024; <https://github.com/hudl/open-data>), the free public release of StatsBomb's professional event data. We use three parts of it: `competitions.json`, the `matches/` files (one per competition and season) and the `events/` files (one JSON file per match). StatsBomb asks users to credit them by name and logo and not to redistribute the raw data, so our repository holds the code that rebuilds the dataset instead of the data.
+**Data sources and collection.** Our data come from [StatsBomb Open Data](https://github.com/hudl/open-data) (StatsBomb, 2024), a free collection of professional soccer event data that StatsBomb collects for clubs and media. Its analysts watch broadcast video and log actions such as passes, shots and pressures, along with where and when they happened. For each shot, they also record a freeze frame showing the positions of players visible on screen, which lets us measure the defensive situation at every shot. StatsBomb asks users to credit it and not redistribute raw data, so our repository contains code to rebuild the dataset instead (source files in Appendix B1).
 
-**Data collection methods.** StatsBomb collects this data for professional clubs and media. Its analysts watch broadcast video of each match and log actions such as passes, shots and pressures, along with where and when they happened. For each shot, they also record a freeze frame showing the positions of players visible on screen. That is why this dataset fits our question. It shows where shots came from, how chances were built, and where defenders and the keeper were.
+**Data suitability and limitations.** Most of StatsBomb's 80 competition-seasons are incomplete, but our coverage check in `initial_eda_02` showed that the 2015/16 Premier League, La Liga, Serie A and Ligue 1 cover all 20 teams in each league (1,517 matches, with 3 missing from Ligue 1), so we chose these four. The limitations are one season of men's top-flight soccer, small player samples, and freeze frames that can miss players off camera.
 
-**Data suitability and limitations.** Most of StatsBomb's 80 competition-seasons are incomplete, with some only covering one team's matches. Our coverage check in `initial_eda_02` showed that the 2015/16 Premier League, La Liga, Serie A and Ligue 1 seasons cover all 20 teams in each league across 1,517 matches, with only 3 missing from Ligue 1. We limited the project to these four seasons because they give us enough shots for machine learning without favoring one team's style. The trade-offs are that we only have one season of men's top-flight soccer, which leaves some players with small samples, and freeze frames can miss players who are off camera. StatsBomb's 360 data is not available for these seasons, so any extension would need different competitions.
+**Data acquisition and reproducibility.** We downloaded the JSON files from StatsBomb's public GitHub repository. `load_statsbomb_data_01` reads every men's competition into one shots table (66,854 shots, 159 columns), and `initial_eda_02` filters it to the four 2015/16 leagues and builds our features. Together, these notebooks provide the steps to rebuild the dataset. In Week 3 we will replace their hardcoded file paths with a relative, git-ignored `data/` folder and add a `requirements.txt`.
 
-**Data acquisition.** We downloaded the JSON files from StatsBomb's public GitHub repository. Our loading notebook (`load_statsbomb_data_01`) reads every men's competition into one shots table (66,854 shots, 159 columns), and `initial_eda_02` filters it to the four 2015/16 leagues and builds our features.
+**Unit of observation and data structure.** Each row is one shot, with locations in StatsBomb's 120 × 80 coordinate units. Shots are not independent, since they occur within possessions, matches, teams and players, so shots from the same match must stay together when splitting. Players have between 1 and 219 non-penalty shots. The supplementary build contains 37,888 shots, including 400 penalties, plus possession, player and team tables (Table B1).
 
-**Unit of observation.** Each row in the modeling table is one shot. Shots are not independent because they occur within possessions, matches, teams and players. This matters for validation because shots from the same match must stay together in the train/test split. Players have between 1 and 219 non-penalty shots, which also matters for the finishing analysis.
+**Key variables.** Our feature table, `shots_analysis_df` in `initial_eda_02`, has 37,449 shots and 40 columns after cleaning. The target is `is_goal`, with 9.5% of shots resulting in goals. Predictors include shot location, distance and angle, shot details, chance creation, defensive pressure and six freeze-frame features. We keep match IDs and dates for grouping and time-ordered splits, and StatsBomb's xG only as a benchmark. The full variable list, including planned features, is in Appendix A.
 
-**Units of measurement.** All locations and distances use StatsBomb's standard 120 × 80 coordinate system rather than real-world measurements.
+**Data integration.** We joined match details to shots using `match_id`, linked shots to earlier passes using `key_pass_id`, and added possession features using match and possession number. Next, we will join our model's xG to `player_season.csv` using `player_id` and `team`. Since players can change clubs mid-season, we will calculate finishing by `player_id` and use `team` for team summaries.
 
-**Initial data structure.** The supplementary build contains 37,888 shots, including 400 penalties, along with tables for possessions, players and teams. The full breakdown is in Appendix B1, Table B1.
-
-**Key variables.** Our feature table, `shots_analysis_df` in `initial_eda_02`, has 37,449 shots and 40 columns after cleaning. The target is `is_goal`, with about 9.5% of shots resulting in goals. Predictors include shot location, distance and angle, shot details, how the chance was created, defensive pressure, and six features we built from freeze frames. We also added `receipt_to_shot_seconds` and `receipt_to_shot_displacement` (Appendix B5). We use match, competition, team and player IDs to group the data. StatsBomb's xG is kept only as a benchmark, not a predictor. Additional build-up features are planned from the supplementary dataset, while Appendix A lists the full set of variables and features still to be created.
-
-**Data integration.** We joined match details to shots using `match_id`, linked shots to the pass before them using `key_pass_id`, and added possession features using match and possession number. We also corrected inconsistent names for Caen and Marseille. Next, we will join our model's xG to `player_season.csv` using `player_id` and `team` to calculate finishing. Since players can change clubs mid-season, we will total finishing by `player_id` and use `team` only for team summaries.
-
-**Initial data quality.** We found no duplicate shots or missing values in the location, shot type and outcome columns (Appendix B2). We dropped 32 shots where the goalkeeper was missing from the freeze frame, even though most were recorded as saves, and 7 shots taken directly from corners, since there were too few to model (Appendix B1). The key-pass columns are blank for 28.6% of shots, which is expected because those shots had no key pass. The target is unbalanced, with 9.5% of non-penalty shots resulting in goals compared with 75% of penalties. We also found a leakage problem with `shot_deflected`, which describes something that happens after the ball is struck (Appendix B2). We will leave it out along with the outcome and end-location columns.
-
-**Reproducibility.** Our working dataset can be rebuilt by downloading StatsBomb Open Data and running `load_statsbomb_data_01` followed by `initial_eda_02`. The notebooks still use hardcoded Windows file paths. In Week 3 we plan to switch to a relative, git-ignored `data/` folder and add a `requirements.txt` so others can run the analysis.
+**Initial data quality.** We found no duplicate shots or missing values in the location, shot type and outcome columns (Appendix B2). We dropped 32 shots with no visible goalkeeper, even though most were recorded as saves, and 7 direct corner shots because there were too few to model (Appendix B1). Only 9.5% of non-penalty shots were goals. We will exclude `shot_deflected`, outcome and end-location columns because they describe what happened after the shot (Appendix B2).
 
 ## Analysis Plan
 
 **Remaining data acquisition and preparation**
 
-- We do not need any new data for the main project. The four 2015/16 league seasons are already downloaded and cleaned.
-- We already decided to leave penalties out of the xG model (see *Penalty shots* in Appendix B1). Penalty shootouts were removed too.
-- We need to move the build scripts into the team repository, fix the hardcoded file paths, and add a README, a `requirements.txt` and a `.gitignore` so the data files stay out of the public repo.
+- No new data is needed. Penalties and penalty shootouts are already excluded (Appendix B1).
+- Still to integrate: build-up and key-pass features from the supplementary build, joined on the shot `id`.
 
 **Preprocessing and leakage prevention**
 
-- "Leakage" means giving the model information it would not have at the moment the shot is taken. To avoid it, we will leave out every column that describes what happened after the shot: `shot_outcome_name` (this is what `is_goal` comes from), `shot_deflected`, `shot_statsbomb_xg`, and the end-location and xG columns in the supplementary build.
-- `shot_freeze_frame` has already been dropped now that all the freeze-frame features are built. We will keep the ID columns (`id`, `match_id`, `player_id`, `team_id`) only for joining tables and splitting the data.
-- We will also leave player and team names out of the xG model (`player_name`, `team_name`, `home_team`, `away_team`). The model should judge how good the chance was, not who took it. We look at the players afterward, in the finishing analysis.
-- Category columns will be turned into numbers the models can use (one-hot encoding for logistic regression, built-in category handling for boosting). The True/False shot flags are already filled in and will be stored as 0 and 1. Very rare categories, like `shot_body_part_name = Other` (87 shots), will be grouped together.
+- Exclude post-shot columns (`shot_outcome_name`, `shot_deflected`, end location) and player and team names; xG columns are benchmarks only, and IDs are kept only for joining and splitting.
+- One-hot encode categories for logistic regression, store True/False flags as 0 and 1, and group rare categories.
+- Hold out the most recent 20% of matches by date for testing, and tune with time-ordered, match-grouped cross-validation on earlier matches.
 
 **Exploratory data analysis (polished EDA, Week 4)**
 
-- How the chance of scoring changes with distance and angle, and whether that is different for headers and kicks.
-- Whether pressure from a defender lowers the chance of scoring once distance is taken into account. The raw numbers hide this (Appendix B4).
-- Which kinds of build-up play (counterattacks, through balls, crosses, set pieces) lead to the best chances, and how that differs by team.
-- How many shots a player needs before their goals minus xG actually means something.
-- **Unsupervised model (required):** we will use k-means or a Gaussian mixture model to group shots into types based on their features (location, `shot_distance`, `shot_angle`, the lane features, `percent_of_goal_open`, the goalkeeper distances, and how fast and long the build-up was). We hope to find shot types a coach would recognize, like "close-range cutback," "long shot under pressure" or "header from a set piece." We will pick the number of groups using silhouette scores and BIC. The groups will be useful if a coach can understand them, if their goal rates are different, and if adding the group label helps the baseline model. A backup idea is to group players by their per-90 stats in `player_season.csv` to find different attacking roles.
+- How distance, angle and shot type affect scoring, and whether defensive pressure matters after accounting for distance (Appendix B4).
+- Which kinds of build-up play create the best chances, and how many shots are needed to judge player finishing.
+- Whether missing freeze-frame information is concentrated in certain matches or leagues and affects our defensive features.
+- **Unsupervised model:** k-means or a Gaussian mixture model to group shots by location, defense and build-up, choosing the number of groups using silhouette scores (k-means) or BIC (Gaussian mixtures). Groups are useful if they have different goal rates, make sense to coaches and improve the baseline model.
 
 **Baseline model**
 
-- Our simplest model is a logistic regression that only uses `shot_distance` and `shot_angle`. This is the classic xG model (Rathke, 2017). It is easy to explain, and every other model has to beat it to be worth using.
-- We already have two reference points on the 37,449 analysis shots. Guessing the 9.5% average for every shot gives a log loss of 0.314 and a Brier score of 0.086. StatsBomb's own xG gets a log loss of 0.248, a Brier score of 0.070 and a ROC AUC of 0.816 (Appendix B4). StatsBomb's model is something to get close to, not something we expect to beat.
+- Logistic regression on `shot_distance` and `shot_angle` only, the classic xG model (Rathke, 2017); simple, interpretable, and the model every other approach must beat.
+- Reference points (Appendix B4): predicting the 9.5% average gives a log loss of 0.314 and Brier score of 0.086; StatsBomb's xG gets 0.248, 0.070 and a ROC AUC of 0.816.
 
-**Additional modeling approaches (at least three models: one unsupervised and two or more supervised)**
+**Additional modeling approaches**
 
-- **Supervised model 1:** a logistic regression with all the features. We will add a penalty (L2 regularization) to keep it from overfitting and use splines so distance and angle can have curved effects. It is easy to interpret, and its probabilities are usually realistic.
-- **Supervised model 2:** gradient-boosted trees (LightGBM or XGBoost). These can pick up curved patterns and combinations, like pressure mattering more up close, and they did well for Anzer and Bauer (2021).
-- **Optional:** a random forest as a second tree-based model to compare.
-- **Player finishing:** for each player we will compare their actual goals to the goals our model expected. We will use empirical Bayes shrinkage, which pulls players with only a few shots toward average so they do not look better or worse than they are.
+- **Supervised model 1:** L2-regularized logistic regression with all features and splines for distance and angle, for interpretable, realistic probabilities.
+- **Supervised model 2:** Gradient-boosted trees (LightGBM or XGBoost) to capture nonlinear effects and interactions; this approach performed well for Anzer and Bauer (2021).
+- **Player finishing (secondary):** Compare each player's goals with their summed model xG, using empirical Bayes shrinkage for players with few shots.
 
 **Evaluation strategy**
 
-- Our main scores are log loss and Brier score. Both measure how close the predicted probabilities are to what actually happened. ROC AUC, which measures how well the model ranks goals above misses, will be a second check. We will not use accuracy, because a model that always says "no goal" would already be 90.5% accurate.
-- We will check calibration, meaning whether shots given a 20% chance really go in about 20% of the time. We will use reliability curves and expected calibration error, and adjust the boosted model (isotonic or Platt scaling) if it is off. We will not oversample goals or reweight the data, because that would make the probabilities wrong.
-- For validation we will use 5-fold cross-validation grouped by match to tune the models, the leave-one-league-out test to see if they generalize, and one final check on the held-out test matches.
-- We will compare training scores to validation scores to catch overfitting, and report results for open play and set pieces separately.
+- Our main metrics will be log loss and Brier score, with ROC AUC as a second check. Accuracy is misleading because only 9.5% of shots are goals.
+- We will check calibration using reliability curves and expected calibration error, adjusting the boosted model with isotonic or Platt scaling if needed. We will not oversample or reweight goals to preserve realistic probabilities.
+- Beyond the time-ordered split above, leave-one-league-out testing will check generalization. We will compare training and validation scores for overfitting and report open-play and set-piece results separately.
 
 **Analytical question and hypothesis evaluation**
 
-- *Hypothesis 1* is supported if the models with all the features beat the distance-and-angle baseline on matches they have not seen by a clear margin, stay well calibrated, and rank the freeze-frame features among the most important. We will report the difference in log loss with a bootstrap confidence interval over matches.
-- *Hypothesis 2* is supported if a player's finishing in odd-numbered matches has little to do with their finishing in even-numbered matches, and if shrinkage pulls most players close to zero.
-- The model would be ready for a coaching staff to use if its probabilities are within a few percentage points of the   real goal rate across the range, and if each team's total xG for the season lines up closely with the goals it actually scored.
+- *Hypothesis 1* is supported if the full models beat the baseline on unseen matches (bootstrap confidence interval on the log loss difference), stay well calibrated, and rank freeze-frame features as important.
+- *Hypothesis 2* is supported if finishing in odd and even numbered matches is weakly related and shrinkage pulls most players toward zero.
+- For coaching use, predicted probabilities should be within a few percentage points of observed goal rates, without consistently overpredicting or underpredicting goals across teams.
 
 **Feasibility**
 
-- The modeling table has about 37,000 rows and fewer than 70 columns, so every model trains in seconds or minutes on a laptop. We do not need cloud computing.
-- The data is already collected, cleaned and documented, so we can spend the last six weeks on modeling: Week 3 preprocessing, Week 4 EDA and clustering, Week 5 baseline, Week 6 boosting and tuning, Week 7 final model and finishing, and Week 8 the report.
+- About 37,000 shots train in minutes on a laptop, and the remaining six weeks follow the roadmap in the Basics table.
 
 **Potential risks and alternatives**
 
-- *The extra features might add little beyond location.* That would still answer our question. We would report it and put more focus on calibration and finishing.
-- *One season might not be enough to judge finishing* (Figure B4 suggests this is likely). We would report shrunken estimates, only rank players with at least 30 shots, or switch to team finishing and chance creation, which have much bigger samples.
-- *Freeze frames might have gaps or miss players who are off camera.* We would compare models with and without those features.
-- *We might run short on time.* If so, we would drop the optional 360 extension and the random forest first.
+- *Extra features add little beyond location:* Report it and focus on calibration and finishing.
+- *One season is too little to judge finishing* (Figure B4): Use shrinkage, rank only players with 30+ shots, or move to team finishing.
+- *Freeze frames miss off-camera players:* Check missingness by league and compare models with and without those features.
+- *Time runs short:* Scale back the finishing analysis first.
 
 **Languages, packages and computing**
 
-- Python 3, using Jupyter notebooks and `.py` scripts. We may use R for a few statistical checks.
-- pandas, NumPy, scikit-learn (logistic regression, k-means, Gaussian mixtures, grouped cross-validation, calibration), LightGBM or XGBoost, statsmodels, Shapely, matplotlib and seaborn, and mplsoccer for drawing the field.
-- A normal laptop with about 1 GB of free space for the raw JSON files during the rebuild. The raw data stays out of the public repo because of StatsBomb's terms.
+- Python 3 (Jupyter notebooks and `.py` scripts), with R for occasional statistical checks; pandas, NumPy, scikit-learn, LightGBM or XGBoost, statsmodels, Shapely, matplotlib, seaborn and mplsoccer; a standard laptop with about 1 GB free for the raw JSON files, which stay out of the repository under StatsBomb's terms.
 
 ## References
 
