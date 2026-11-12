@@ -46,9 +46,9 @@ This is a challenging data science problem because only about one in ten non-pen
 
 Rathke (2017) showed that distance and angle improve goal prediction and used goals minus xG to evaluate players, while Lucey et al. (2015) and Anzer and Bauer (2021) found that adding defender and goalkeeper positions improves location-only models. We apply these approaches to a nearly complete dataset covering four leagues, testing whether freeze-frame features (player positions at the moment of the shot) improve predictions and whether one season is enough to separate finishing skill from luck.
 
-**Hypothesis 1 (shot quality).** A shot's chance of scoring depends on distance, angle, and the positions of defenders and the goalkeeper. These factors matter because they determine how much of the goal the shooter can actually aim at. How the chance was created also matters.
+**Hypothesis** A shot's chance of scoring depends on distance, angle, and the positions of defenders and the goalkeeper. These factors matter because they determine how much of the goal the shooter can actually aim at. How the chance was created also matters.
 
-*Prediction 1.* Adding freeze-frame and build-up features should lower log loss and Brier score on unseen matches compared with a location-only model, and defensive pressure should matter once distance is accounted for (Appendix B4).
+*Prediction* Adding freeze-frame and build-up features should lower log loss and Brier score on unseen matches compared with a location-only model, and defensive pressure should matter once distance is accounted for (Appendix B4).
 
 ## Data & Methods
 
@@ -105,9 +105,7 @@ Rathke (2017) showed that distance and angle improve goal prediction and used go
 
 **Analytical question and hypothesis evaluation**
 
-- *Hypothesis 1* is supported if the full models beat the baseline on unseen matches (bootstrap confidence interval on the log loss difference), stay well calibrated, and rank freeze-frame features as important.
-- *Hypothesis 2* is supported if finishing in odd and even numbered matches is weakly related and shrinkage pulls most players toward zero.
-- For coaching use, predicted probabilities should be within a few percentage points of observed goal rates, without consistently overpredicting or underpredicting goals across teams.
+- Our Hypothesis is supported if the full models beat the baseline on unseen matches (bootstrap confidence interval on the log loss difference), stay well calibrated, and rank freeze-frame features as important.
 
 **Feasibility**
 
@@ -116,7 +114,6 @@ Rathke (2017) showed that distance and angle improve goal prediction and used go
 **Potential risks and alternatives**
 
 - *Extra features add little beyond location:* Report it and focus on calibration and finishing.
-- *One season is too little to judge finishing* (Figure B4): Use shrinkage, rank only players with 30+ shots, or move to team finishing.
 - *Freeze frames miss off-camera players:* Check missingness by league and compare models with and without those features.
 - *Time runs short:* Scale back the finishing analysis first.
 
@@ -218,8 +215,7 @@ This is our first look at the data. Every table and figure here was made by runn
 
 ### B1. Data access and structure
 
-We accessed the StatsBomb Open Data repository files `competitions.json`, `matches/{competition}/{season}.json` for the four 2015/16 league seasons, and the 1,517 matching `events/{match_id}.json` files. Our build scripts turned these into five related tables (Table B1), which link together through `match_id`, `team` and `player_id`. `shots.csv` is the table we model on, and the others are for the build-up and player analyses.
-
+We accessed the StatsBomb Open Data repository files `competitions.json`, `matches/{competition}/{season}.json` for the four 2015/16 league seasons, and the 1,517 matching `events/{match_id}.json` files. Our build scripts turned these into five related tables (Table B1), which link together through `match_id`, `team` and `player_id`. 
 **Table B1. Working dataset: files, rows, columns and unit of observation**
 
 | File | Rows | Columns | One row per | Linked by |
@@ -230,7 +226,7 @@ We accessed the StatsBomb Open Data repository files `competitions.json`, `match
 | `player_season.csv` | 2,288 | 58 | Player × team, season totals | `player_id`, `team` |
 | `team_season.csv` | 80 | 45 | Team | `team` |
 
-Here is what we have already done to the data. We kept only the four 2015/16 leagues (1,517 matches, 80 teams and 1,800 players who took a shot). We removed penalty shootouts. We filled in the True/False shot flags with False where StatsBomb left them blank. We turned the freeze frames into number features, linked each shot to the pass before it, and fixed two club names that were spelled two ways. Our target is `is_goal`. For modeling we will use the 37,449 shots described below, which are non-penalty shots with a visible goalkeeper, not counting shots straight from corners.
+Here is what we have already done to the data. We kept only the four 2015/16 leagues (1,517 matches, 80 teams and 1,800 players who took a shot). We removed penalty shootouts. We filled in the True/False shot flags with False where StatsBomb left them blank. We turned the freeze frames into number features, linked shots to their assisting passes where a valid link was available (see B5), and fixed two club names that were spelled two ways. Our target is `is_goal`. For modeling we will use the 37,449 shots described below, which are non-penalty shots with a visible goalkeeper, not counting shots straight from corners.
 
 **Shot location, distance and angle.** StatsBomb records each shot's location as an `[x, y]` coordinate on its standardized 120 × 80 pitch, with the attacking team always shooting toward x = 120 and the centre of the goal at (120, 40). When the shots were first saved to CSV, the coordinates were stored as text, so we converted them back to numbers and split them into `x` and `y` columns.
 
@@ -272,7 +268,7 @@ Our supplementary build (`soccer_csv/`) uses slightly different names for some o
 | Serie A | 380 | 9,998 | 9,877 | 951 | 9.5% | 920.8 |
 | **Total** | **1,517** | **37,888** | **37,488** | **3,869** | **10.2%** | **3,746.8** |
 
-Table B2 shows that each league has about the same number of shots and a similar goal rate. No one league takes over the data, so it makes sense to test the model by leaving one league out. The three missing Ligue 1 matches are only a small gap. In every league, teams scored about 2% to 5% more goals than StatsBomb's xG expected. That is a small difference, but we will keep an eye on it when we check our own model.
+Table B2 shows that each league has about the same number of shots and a similar goal rate. No one league takes over the data, so it makes sense to test the model by leaving one league out. The three missing Ligue 1 matches are only a small gap. In each league, teams scored about 2% to 5% more goals than StatsBomb's xG expected. That is a small difference, but we will keep an eye on it when we check our own model.
 
 ### B2. Initial data quality checks
 
@@ -308,11 +304,11 @@ Figure B2 brings angle into the picture. Shots from a narrow strip in front of g
 
 ![**Figure B3. Goal rate by defensive context and by how the chance was created (analysis shots).** Left: `defenders_in_lane`, the number of opponents (excluding the goalkeeper) between the shooter and the posts at the moment of the shot. Right: type of key pass, for types with at least 200 shots.](figs/fig3_context.png)
 
-Figure B3 is an early sign that Hypothesis 1 holds. When no defenders are in the lane, 13.8% of shots go in, compared with 4.6% to 5.8% when at least one defender is in the way. The type of pass before the shot matters too. Shots after a through ball go in 30.2% of the time, after a cross 14.3%, and after an ordinary pass only 7.1%. These are raw rates, and some of the gap is probably location, since through balls tend to lead to closer shots. The models in Weeks 5 and 6 will help pull these effects apart.
+Figure B3 is an early sign that our hypothesis holds. When no defenders are in the lane, 13.8% of shots go in, compared with 4.6% to 5.8% when at least one defender is in the way. The type of pass before the shot matters too. Shots after a through ball go in 30.2% of the time, after a cross 14.3%, and after an ordinary pass only 7.1%. These are raw rates, and some of the gap is probably location, since through balls tend to lead to closer shots. The models in Weeks 5 and 6 will help pull these effects apart.
 
 **Table B4. Goal rate by the other freeze-frame features (analysis shots, n = 37,449)**
 
-| Feature | Value | Shots | Goals scored |
+| Feature | Value | Shots | Goal rate |
 |---|---|---:|---:|
 | `goalkeeper_in_lane` | True | 36,002 | 8.4% |
 | `goalkeeper_in_lane` | False | 1,447 | 37.3% |
@@ -332,16 +328,11 @@ Figure B3 is an early sign that Hypothesis 1 holds. When no defenders are in the
 
 The goalkeeper's position turned out to be one of the strongest signals we have (Table B4). When the keeper is out of the shooting lane, 37.3% of shots go in, about four times the usual rate. It only happens on about 4% of shots, but it is clearly worth keeping. Since we dropped the 32 shots where the keeper was not in the frame, "False" here always means the keeper was there but out of position. Having a teammate in the lane cuts the goal rate about in half. One possible reason is that teammates can block the shot too, and crowded lanes are common after set pieces, which we will look into in the polished EDA. The goal rate also climbs steadily with `percent_of_goal_open`, from 5.3% when a quarter of the goal or less is open to 48.3% when nothing is blocking it, so this one feature sums up the defensive picture well. Goalkeeper distance from goal tells a similar story. Up to about 6 units off the line the goal rate barely changes, but once the keeper is more than 6 units out it jumps to 22% to 27%, usually because the keeper has rushed out or been caught out of position.
 
-![**Figure B4. Player finishing: goals minus StatsBomb xG against number of analysis shots (one point per player with at least one non-penalty shot).** The dashed line marks 30 shots; selected high-volume players are labeled.](figs/fig4_players.png)
-
-Figure B4 is about the second half of our question. Most players did not shoot much (the median is 13 shots, 39% took fewer than 10, and only 428 took 30 or more), and their goals minus xG sit close to zero. The spread gets wider as players take more shots. A handful of top forwards stand out, including Suárez (+13.3), Ibrahimović (+13.0), Higuaín (+10.3) and Bale (+10.0), while Džeko scored about 6 fewer than expected. With this few shots per player, one-season rankings will be noisy, which is why we plan to use shrinkage for Hypothesis 2.
-
 ### B4. Preliminary findings and implications
 
 - **What this changes in our plan.** Distance and angle have a strong but curved relationship with scoring (Figures B1 and B2), so the baseline will use reshaped versions of them. The freeze-frame and key-pass features show big differences in goal rate (Figure B3 and Table B4), so they are worth adding on top of location.
 - **Pressure is mixed up with distance.** At first glance `under_pressure` barely matters (9.2% of pressured shots go in versus 9.6% of the rest). But pressured shots are taken a lot closer to goal (median 14.7 versus 20.8 coordinate units). Inside 12 units, pressure cuts the goal rate about in half (13.6% versus 26.2%). So we cannot judge features one at a time; they have to be modeled together. This will make a good example in the polished EDA.
 - **Benchmarks.** On the 37,449 analysis shots, guessing the 9.5% average for every shot gives a log loss of 0.314 and a Brier score of 0.086 (lower is better for both). StatsBomb's xG gets a log loss of 0.248, a Brier score of 0.070 and a ROC AUC of 0.816. Our models should land somewhere between these two.
-- **Limitations to look into.** Player samples are small (Figure B4). We removed 32 shots with no goalkeeper in the frame even though they were recorded as saves or goals, and other freeze frames could be incomplete in ways that are harder to spot, since players off camera are not recorded. Having only one season also limits the finishing analysis.
 - **Changes we recommend.** (1) Keep `is_goal` as the target, but only model non-penalty shots. (2) Keep `shot_deflected` and every other after-the-shot column out of the models. (3) Only report player finishing with shrinkage and for players with at least 30 shots, with team finishing as a backup plan. (4) Move the charter's third question, about differences between men's and women's soccer, to future work, since our data only covers men's leagues.
 
 
