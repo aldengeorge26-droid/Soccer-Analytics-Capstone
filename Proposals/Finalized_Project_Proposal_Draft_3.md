@@ -1,0 +1,282 @@
+---
+title: "What Makes a Good Shot? Expected Goals in Europe's Big Four Leagues, 2015/16"
+subtitle: "DSE6311 Finalized Project Proposal"
+---
+
+![](figs/statsbomb_logo.png){width=2.2in}
+
+*Data provided by StatsBomb (StatsBomb Open Data, <https://github.com/hudl/open-data>).*
+
+## Basics
+
+| Item | Detail |
+|---|---|
+| **Project title** | What Makes a Good Shot? Expected Goals in Europe's Big Four Leagues, 2015/16 |
+| **Team name** | team_beta |
+| **GitHub repository** | <https://github.com/aldengeorge26-droid/Soccer-Analytics-Capstone> |
+| **Data source** | StatsBomb Open Data (credited with name and logo above) |
+
+**Team members and weekly roles**
+
+| Member | Standing role | [Weekly role rotation, Weeks 3 to 8] |
+|---|---|---|
+| Alden George | Documentation | |
+| Brian D'Alelio | Communication | |
+| Brian Quevillon | Team Lead | |
+| Anthony Dominici | | |
+
+| Week | Roadmap milestone | [Lead] | [Support] |
+|---|---|---|---|
+| 3 | Preprocessing and leakage prevention | [ ] | [ ] |
+| 4 | Polished EDA and unsupervised model | [ ] | [ ] |
+| 5 | Baseline model | [ ] | [ ] |
+| 6 | Additional models and tuning | [ ] | [ ] |
+| 7 | Final model | [ ] | [ ] |
+| 8 | Final report and presentation | [ ] | [ ] |
+
+## Background & Project Question
+
+Goals are rare in soccer, so a few deflections or good saves can change how a season looks. Clubs still judge teams on results, which can lead to bad decisions like firing a coach whose team creates good chances but fails to finish them (Brechot & Flepp, 2020). Expected goals (xG), the probability that a shot becomes a goal, separates chance creation from finishing and luck. xG predicts future success better than goals or shot totals (Mead et al., 2023), and Liverpool used similar analysis before hiring Jürgen Klopp (Schoenfeld, 2019). Distance and angle drive goal prediction (Rathke, 2017), and defender and goalkeeper positions improve location-only models (Lucey et al., 2015; Anzer & Bauer, 2021).
+
+**Research question.** *Which characteristics of a shot (where it is taken, how the chance was created, and what the defense looks like at that moment) best predict its probability of becoming a goal?* We aim for a well-calibrated xG model that shows coaching staff which chances are worth creating, without treating features as causes. This is hard because only about one in ten non-penalty shots is scored, the model must give realistic probabilities, and the same players and matches repeat, so splits must avoid leakage.
+
+**Hypothesis.** A shot's chance of scoring depends on distance, angle, and where defenders and the goalkeeper are, because these decide how much of the goal the shooter can aim at. How the chance was created also matters. *Prediction:* freeze-frame and build-up features should lower log loss and Brier score on unseen matches compared with a location-only model (Appendix B4).
+
+## Data & Methods
+
+**Data sources and suitability.** StatsBomb Open Data (StatsBomb, 2024) logs passes, shots and pressures from broadcast video, and each shot has a freeze frame showing where visible players were. StatsBomb asks users not to redistribute raw data, so our repository holds code to rebuild it (Appendix B1). Only the 2015/16 Premier League, La Liga, Serie A and Ligue 1 cover every team in a league (1,517 matches). Limits include one men's season, freeze frames that miss off-camera players, analyst judgment on things like pressure, and no adjustment for player skill, since we measure the chance, not the player.
+
+**Acquisition, structure and variables.** `load_statsbomb_data_01` reads the public JSON files into one shots table, and `initial_eda_02` filters it to the four leagues and builds features; in Week 3 we will add a `requirements.txt` and relative paths. Each row is one shot on StatsBomb's 120 × 80 coordinate grid, and shots from the same match stay together when splitting. Our table, `shots_analysis_df`, has 37,443 shots and 40 columns. The target is `is_goal` (9.5% goals). Predictors cover location, distance, angle, shot details, chance creation, pressure and six freeze-frame features, joined on `match_id` and `key_pass_id`; StatsBomb's xG is a benchmark only (Appendix A).
+
+**Initial data quality.** There are no duplicates or missing location, type or outcome values (Appendix B2). We excluded penalties, 32 shots with no visible goalkeeper, 7 direct corners, and 6 shots with no linked pass receipt (Appendices B1 and B5).
+
+## Analysis Plan
+
+**Preprocessing and EDA.** We will drop post-shot columns (`shot_outcome_name`, `shot_deflected`, end location) and names, one-hot encode categories, and hold out the latest 20% of matches for testing, tuning with time-ordered, match-grouped cross-validation. Week 4 EDA will test whether pressure matters once distance is accounted for and which build-up play creates the best chances. K-means or a Gaussian mixture model will group shots into types, using silhouette scores or BIC to pick the number of groups.
+
+**Models and evaluation.** The baseline is logistic regression on `shot_distance` and `shot_angle` (Rathke, 2017). Predicting 9.5% for every shot gives a log loss of 0.314, and StatsBomb's xG gets 0.247 with a ROC AUC of 0.816 (Appendix B4). We will then fit an L2-regularized logistic regression with all features and gradient-boosted trees (LightGBM or XGBoost), which worked well for Anzer and Bauer (2021). Log loss and Brier score are our main metrics, with ROC AUC as a check, since accuracy is misleading when so few shots are goals. We will check calibration with reliability curves and test generalization by leaving one league out. The hypothesis is supported if the full models beat the baseline on unseen matches (bootstrap interval on the log loss difference) and rank freeze-frame features as important.
+
+**Feasibility, risks and tools.** About 37,000 shots train in minutes on a laptop. If extra features add little, we will report that, and if time runs short, the L2 logistic regression becomes the final model. We will use Python 3 (pandas, scikit-learn, LightGBM or XGBoost, statsmodels, Shapely, matplotlib and mplsoccer).
+
+## References
+
+Anthropic. (2026). *Claude* (Opus 5.5 version) [Large language model]. https://claude.ai. Used to help develop and explain the shot angle, shooting lane and percent of goal open calculations.
+
+Anzer, G., & Bauer, P. (2021). A goal scoring probability model for shots based on synchronized positional and event data in football (soccer). *Frontiers in Sports and Active Living, 3*, 624475. https://doi.org/10.3389/fspor.2021.624475
+
+Brechot, M., & Flepp, R. (2020). Dealing with randomness in match outcomes: How to rethink performance evaluation in European club football using expected goals. *Journal of Sports Economics, 21*(4), 335–362. https://doi.org/10.1177/1527002519897962
+
+Lucey, P., Bialkowski, A., Monfort, M., Carr, P., & Matthews, I. (2015). "Quality vs quantity": Improved shot prediction in soccer using strategic features from spatiotemporal data. *Proceedings of the 9th MIT Sloan Sports Analytics Conference*.
+
+Mead, J., O'Hare, A., & McMenemy, P. (2023). Expected goals in football: Improving model performance and demonstrating value. *PLOS ONE, 18*(4), e0282295. https://doi.org/10.1371/journal.pone.0282295
+
+NumPy Developers. (n.d.). *numpy.arctan2* and *numpy.degrees* [Software documentation]. https://numpy.org/doc/stable/reference/generated/numpy.arctan2.html
+
+Rathke, A. (2017). An examination of expected goals and shot efficiency in soccer. *Journal of Human Sport and Exercise, 12*(2 Proc), 514–529. https://doi.org/10.14198/jhse.2017.12.Proc2.05
+
+Schoenfeld, B. (2019, May 22). How data (and some breathtaking soccer) brought Liverpool to the cusp of glory. *The New York Times Magazine*. https://www.nytimes.com/2019/05/22/magazine/soccer-data-liverpool.html
+
+StatsBomb. (2024). *StatsBomb open data* [Data set]. GitHub. https://github.com/hudl/open-data
+
+# Appendix
+
+## Appendix A. Data Inventory (Data Dictionary)
+
+**Proposed target: `is_goal`** (True if the shot was scored), derived from `shot_outcome_name`. All distances are in StatsBomb coordinate units.
+
+### A1. Variables located in the team's working table
+
+These columns are in `shots_analysis_df` in the repository notebook `initial_eda_02` (penalties, 32 shots with no visible goalkeeper, 7 direct corner shots and 6 shots with no valid linked receipt removed, 37,443 rows × 40 columns). "Source" shows whether the column is a StatsBomb field as recorded or a feature the team computed.
+
+| Variable | Description | Type | Role | Source |
+|---|---|---|---|---|
+| **`is_goal`** | **True if the shot was scored (`shot_outcome_name` is 'Goal'); 9.5% True** | **Boolean** | **TARGET** | Computed |
+| `shot_outcome_name` | Goal, Saved, Off T, Blocked, Post, Wayward, … | Categorical | Source of the target; excluded as a feature | StatsBomb |
+| `id` | Unique StatsBomb event id of the shot | Text | Identifier (join key) | StatsBomb |
+| `match_id` | StatsBomb match id | Numeric (id) | Identifier; grouping for CV splits | StatsBomb |
+| `player_id`, `player_name` | Shooter id and name | Numeric id / text | Identifier (excluded from xG features) | StatsBomb |
+| `team_id`, `team_name`, `home_team`, `away_team` | Shooting team and the match's teams | Numeric id / categorical | Grouping (excluded from xG features) | StatsBomb |
+| `competition_name`, `season_name` | League and season (all 2015/2016) | Categorical | Grouping (leave-one-league-out) | StatsBomb |
+| `match_date` | Date of the match (2015-08-07 to 2016-05-17) | Date | Temporal context | StatsBomb |
+| `period`, `minute`, `second` | When the shot happened | Numeric | Possible predictors / context | StatsBomb |
+| `position_name` | Shooter's position at the time | Categorical | Descriptive / possible predictor | StatsBomb |
+| `x`, `y` | Shot location on the 120 × 80 pitch (goal centre at (120, 40)) | Numeric | Predictors | StatsBomb (parsed from `location` text) |
+| `shot_distance` | Straight-line distance from the shot to the centre of the goal, in coordinate units | Numeric | Predictor (baseline) | Computed |
+| `shot_angle` | Angle between the two posts as seen from the shot, in degrees | Numeric | Predictor (baseline) | Computed |
+| `shot_type_name` | Open Play or Free Kick (penalties and direct corners removed) | Categorical | Predictor | StatsBomb |
+| `shot_body_part_name` | Right Foot, Left Foot, Head, Other | Categorical | Predictor | StatsBomb |
+| `shot_technique_name` | Normal, Volley, Half Volley, Lob, etc. | Categorical | Predictor | StatsBomb |
+| `play_pattern_name` | How the possession began (Regular Play, From Counter, From Corner, …) | Categorical | Predictor | StatsBomb |
+| `under_pressure` | Shooter under pressure from an opponent | Boolean (blank = False) | Predictor | StatsBomb |
+| `shot_first_time`, `shot_one_on_one`, `shot_open_goal`, `shot_aerial_won` | Shot-situation flags | Boolean (blank = False) | Predictors | StatsBomb |
+| `defenders_in_lane` | Opponents (not the goalkeeper) inside the triangle between the shooter and the posts at (120, 36) and (120, 44) | Numeric (count) | Predictor | Computed from freeze frame |
+| `teammates_in_lane` | Shooter's teammates inside the same triangle | Numeric (count) | Predictor | Computed from freeze frame |
+| `goalkeeper_in_lane` | Whether the opposing goalkeeper is inside the triangle | Boolean | Predictor | Computed from freeze frame |
+| `percent_of_goal_open` | Estimated share of the goal mouth (0–100) not blocked by opponents, projecting each opponent ahead of the shooter onto the goal line (outfield players 1 coordinate unit wide, goalkeeper 2) | Numeric | Predictor | Computed from freeze frame |
+| `goalkeeper_distance_from_goal` | Distance from the goalkeeper to the centre of the goal at (120, 40), in coordinate units | Numeric | Predictor | Computed from freeze frame |
+| `goalkeeper_distance_to_shooter` | Distance from the goalkeeper to the shooter, in coordinate units | Numeric | Predictor | Computed from freeze frame |
+| `receipt_to_shot_seconds` | Seconds from receiving the assisting pass to shooting; excludes pass travel time | Numeric, seconds | Candidate predictor | Computed from linked event timestamps |
+| `receipt_to_shot_displacement` | Straight-line distance between the receiving and shot locations; not actual path length or direction | Numeric, coordinate units | Candidate predictor | Computed from linked event locations |
+| `shot_freeze_frame` | Positions of visible players at the moment of the shot | List (stored as text) | Source for the freeze-frame features; already dropped | StatsBomb |
+| `shot_deflected` | Whether the shot was deflected | Boolean | **Leakage: kept for comparison and EDA only** (post-shot) | StatsBomb |
+| `shot_statsbomb_xg` | StatsBomb's own xG for the shot | Numeric (0–1) | **Benchmark only, never a feature** | StatsBomb |
+
+### A2. Variables located in the supplementary build, not yet in the team's table
+
+The following variables are planned additions to `shots_analysis_df` using StatsBomb event data.
+
+| Variable | Description | Type | Role |
+|---|---|---|---|
+| `assisted`, `assist_type`, `assist_height` | Whether a key pass led to the shot, and its kind (Pass, Cross, Through Ball, Cutback, …) and height | Boolean / categorical | Predictors |
+| `poss_seconds_before_shot`, `poss_passes_before_shot`, `poss_players_before_shot` | Length and speed of the build-up | Numeric | Predictors |
+| `follows_dribble`, `in_box` | Shot straight after a dribble; shot from inside the penalty area | Boolean | Predictors |
+| `n_opponents_within_5` | Opponents within 5 coordinate units of the shooter | Numeric (count) | Predictor |
+| `gk_x`, `gk_y` | Goalkeeper x and y location (the team table already has the keeper's distances) | Numeric | Possible predictors |
+| `score_diff_before` | Shooting team's goal difference before the shot | Numeric | Predictor (game state) |
+| `end_x`, `end_y`, `end_z` | Where the shot ended | Numeric | **Leakage: excluded** (post-shot) |
+
+### A3. Variables to derive later (not in the data yet)
+
+| Variable | Description | Type | Role | Planned week |
+|---|---|---|---|---|
+| `log_distance`, `angle_rad`, `dist_x_angle` | Transformed geometry for logistic regression | Numeric | Predictors | 3 |
+| `shot_cluster` | Shot archetype from the unsupervised model | Categorical | Grouping / candidate predictor | 4 |
+| `model_xg` | Our model's out-of-fold probability that the shot is a goal | Numeric (0–1) | Model output | 5–7 |
+
+## Appendix B. Initial EDA
+
+This is our first look at the data. Every table and figure here was made by running code on the actual dataset.
+
+### B1. Data access and structure
+
+We accessed the StatsBomb Open Data repository files `competitions.json`, `matches/{competition}/{season}.json` for the four 2015/16 league seasons, and the 1,517 matching `events/{match_id}.json` files. Our build scripts turned these into five related tables (Table B1), which link together through `match_id`, `team` and `player_id`. 
+**Table B1. Working dataset: files, rows, columns and unit of observation**
+
+| File | Rows | Columns | One row per | Linked by |
+|---|---:|---:|---|---|
+| `shots.csv` | 37,888 | 68 | Shot (shootouts removed) | `match_id`, `team`, `player_id` |
+| `possessions.csv` | 297,794 | 33 | Team possession | `match_id`, `team` |
+| `player_matches.csv` | 42,096 | 37 | Player × match | `match_id`, `player_id` |
+| `player_season.csv` | 2,288 | 58 | Player × team, season totals | `player_id`, `team` |
+| `team_season.csv` | 80 | 45 | Team | `team` |
+
+Here is what we have already done to the data. We kept only the four 2015/16 leagues (1,517 matches, 80 teams and 1,800 players who took a shot). We removed penalty shootouts. We filled in the True/False shot flags with False where StatsBomb left them blank. We turned the freeze frames into number features, linked shots to their assisting passes where a valid link was available (see B5), and fixed two club names that were spelled two ways. Our target is `is_goal`. For modeling, we will use 37,443 non-penalty shots with a visible goalkeeper, excluding shots taken directly from corners and 6 shots whose assisting pass had no valid linked receipt.
+
+**Shot location, distance and angle.** StatsBomb records each shot's location as an `[x, y]` coordinate on its standardized 120 × 80 pitch, with the attacking team always shooting toward x = 120 and the centre of the goal at (120, 40). When the shots were first saved to CSV, the coordinates were stored as text, so we converted them back to numbers and split them into `x` and `y` columns.
+
+*Shot distance* measures how far the shot is from the centre of the goal, using the Pythagorean theorem on the shot's coordinates. It is measured in StatsBomb coordinate units.
+
+> distance = √[(120 − x)² + (40 − y)²]
+
+*Shot angle* measures how wide the goal appears from where the shot is taken: the angle between the two posts at (120, 36) and (120, 44). With dx = 120 − x (distance to the goal line) and dy = y − 40 (distance from the centre of the goal), the angle is
+
+> angle = atan2(8 · dx, dx² + dy² − 16)
+
+where 8 is the width of the goal and 16 is half the goal width squared (4²). Using `atan2` (NumPy Developers, n.d.) handles angles greater than 90 degrees, and the result is converted from radians to degrees (Anthropic, 2026).
+
+*Validation.* We checked both calculations on penalty kicks, which are taken from a known position at (108, 40), where the expected distance is 12 coordinate units and the expected angle is 36.87 degrees. Across the 400 penalties in our dataset, the median distance was 12.0 and the median angle was 36.87 degrees, which matches the expected values and confirms the calculations work.
+
+**Penalty shots.** Penalty shots are taken from a fixed distance and angle with only the goalkeeper defending. Since our analysis focuses on what makes a good shot during attacking play, we decided to exclude penalties. In our dataset, 75% of penalty shots resulted in goals compared to 9.5% of non-penalty shots. Including penalties could influence the model's results since they represent a different type of scoring opportunity. Removing the 400 penalties leaves 37,488 shots.
+
+**Shots with no visible goalkeeper.** In 32 open-play shots, the other team's goalkeeper does not show up in the freeze frame at all. That does not make sense, because 19 of those shots were recorded as saves (the other 13 were 11 goals and 2 blocked shots). It means the freeze frame is missing information. For these shots, `goalkeeper_in_lane` would say False even if the keeper was just off camera, which would throw off one of our best features. So we removed all 32 shots, leaving 37,456. This changes the overall goal rate by less than 0.1 percentage points.
+
+**Shots taken directly from corners.** Only 7 shots came straight from a corner kick (3 of them were goals). We removed them because they are a different kind of scoring chance and there are far too few to model. One of them was also recorded just behind the goal line at x = 120.2, which gave it a slightly negative shot angle. This leaves **37,449 shots** in the analysis dataset.
+
+**Shots with no valid linked receipt.** Six shots had an assisting pass that we couldn't link to a valid receipt, including 2 goals. This meant we couldn't calculate the receipt-to-shot features (see B5), so we removed those shots. That leaves **37,443 shots** in the dataset, including 3,553 goals (9.5%).
+
+**Players in the shooting lane.** The shooting lane is the triangle between the shooter and the two goalposts at (120, 36) and (120, 44). The `shot_freeze_frame` column holds the positions of the visible players when the shot was taken; because it was saved as text in the CSV, we converted it back into a list of players with `ast.literal_eval`. Using the Shapely library, we checked which players were inside this triangle (or on its edge) and created three features: `defenders_in_lane` (opponents in the lane, not including the goalkeeper), `teammates_in_lane` (the shooter's teammates in the lane) and `goalkeeper_in_lane` (whether the opposing goalkeeper is in the lane). The goalkeeper is tracked separately from the other defenders. We confirmed that no non-penalty shot has a missing or empty freeze frame. As a cross-check, `defenders_in_lane` matches the independently computed `n_defenders_in_cone` in our supplementary build for every shot.
+
+**Estimated goal open.** We also created `percent_of_goal_open` to estimate how much of the goal is not blocked by opponents. Using similar triangles, we calculated how much of the goal each opponent ahead of the shooter could block based on their position; players closer to the shooter block a larger section. We assumed outfield players are 1 coordinate unit wide and goalkeepers are 2 units wide; these are estimates, not actual player measurements. We used Shapely to combine overlapping blocked sections and calculate how much of the goal remained open, giving a percentage from 0 to 100. The calculation only considers player positions and does not account for height, movement or shot trajectory. Our independent recomputation from the raw events reproduces the repository's values exactly (mean 44.3%, median 46.6%).
+
+**Goalkeeper positioning.** The last freeze-frame features describe where the goalkeeper is. For each shot we found the opposing goalkeeper and measured two distances with Shapely: `goalkeeper_distance_from_goal`, how far the keeper is from the centre of the goal, and `goalkeeper_distance_to_shooter`, how close the keeper is to the shooter. Both are in coordinate units. The median keeper was 3.0 units from the centre of the goal and 15.5 units from the shooter. These also match our supplementary build exactly.
+
+**Limitations of the freeze-frame features.** Our calculations assume shots travel in a straight line, so curling shots around defenders, shots over a wall and chipped shots are treated the same as straight shots. The player widths used for `percent_of_goal_open` are estimates rather than real measurements. Because pitches are not all the same size, every distance uses StatsBomb's standardized 120 × 80 coordinate system.
+
+Our supplementary build (`soccer_csv/`) uses slightly different names for some of the same columns (`distance` and `angle_deg` for `shot_distance` and `shot_angle`, `outcome` for `shot_outcome_name`). The figures and tables below were computed from it, joined to the lane features by shot id.
+
+**Table B2. Coverage and outcome balance by league (all shots, 2015/16)**
+
+| League | Matches | Shots | Non-penalty shots | Goals from shots | Goal rate | StatsBomb xG total |
+|---|---:|---:|---:|---:|---:|---:|
+| La Liga | 380 | 9,168 | 9,071 | 1,014 | 11.1% | 979.8 |
+| Ligue 1 | 377 | 8,814 | 8,723 | 916 | 10.4% | 874.9 |
+| Premier League | 380 | 9,908 | 9,817 | 988 | 10.0% | 971.4 |
+| Serie A | 380 | 9,998 | 9,877 | 951 | 9.5% | 920.8 |
+| **Total** | **1,517** | **37,888** | **37,488** | **3,869** | **10.2%** | **3,746.8** |
+
+Table B2 shows that each league has about the same number of shots and a similar goal rate. No one league takes over the data, so it makes sense to test the model by leaving one league out. The three missing Ligue 1 matches are only a small gap. In each league, teams scored about 2% to 5% more goals than StatsBomb's xG expected. That is a small difference, but we will keep an eye on it when we check our own model.
+
+### B2. Initial data quality checks
+
+**Table B3. Missing values for key variables (`shots.csv`, n = 37,888)**
+
+| Variable(s) | Missing | % | Explanation |
+|---|---:|---:|---|
+| `x`, `y`, `distance`, `angle_deg`, `body_part`, `shot_type`, `under_pressure`, `is_goal`, `statsbomb_xg` | 0 | 0.0% | Complete |
+| `n_defenders_in_cone`, `n_opponents_within_5` | 354 | 0.9% | All are penalties (no freeze frame recorded) |
+| `gk_x`, `gk_y`, `gk_distance` | 386 | 1.0% | 354 penalties plus 32 open-play shots with no keeper visible (removed from the analysis set) |
+| `assist_type`, `assist_x`, `assist_length`, … | 10,853 | 28.6% | Structural: no key pass (rebounds, dribbles, loose balls) |
+| `assist_set_piece` | 32,361 | 85.4% | Structural: only filled when the key pass was a set piece |
+| `end_z` | 11,626 | 30.7% | Structural: blocked and wayward shots have no height; post-shot field, excluded anyway |
+
+Other checks:
+
+- **Duplicates and IDs:** No shot ID shows up twice, and there are no duplicate rows. Each of the 1,517 matches has its own `match_id`. 33 La Liga matches use older six-digit IDs instead of seven-digit ones, but they still join correctly, so this is just a naming difference and not an error.
+- **Consistent coding:** Caen and Marseille were each spelled two ways in the raw data, so we made the names match. StatsBomb only records the True/False flags when they are true, so a blank means False.
+- **How often shots go in:** Only 9.5% of the analysis shots are goals (3,553 of 37,443), compared with 75% of the 400 penalties. So goals are the much smaller class. Across all shots, 12,637 were off target, 9,472 were blocked, 8,783 were saved, 3,869 were goals, 2,154 were wayward, 710 hit the post and 263 were other kinds of saves.
+- **Unusual values:** 218 shots have an angle over 90°. They were all taken within about 4 coordinate units of the goal, where an angle that wide is actually possible, so they are fine. Ten shots have an angle over 150° (up to 180° when the player is standing on the goal line between the posts), and all ten were goals. 44 shots were taken from the shooter's own half. None of them went in, and the keeper was often far from goal (median 12.1 units), which explains why a player would try it. 199 shots had 5 or more defenders in the lane. About half were free kicks into a wall, and the open-play ones were long shots (median 21.5 units) that only went in 3.2% of the time. Shots with 3 or more teammates in the lane almost all came from free kicks and corners. All of these look like real game situations, so we kept them. The only impossible value was a corner shot recorded behind the goal line at x = 120.2, and it was removed with the other corner shots.
+- **Time covered:** 7 August 2015 to 17 May 2016, match weeks 1 to 38, first and second halves only.
+- **Leakage concerns:** Some columns describe what happened after the shot, or come from the answer itself. These are the outcome, where the shot ended up, whether it was deflected, and every xG column. Deflected shots go in 35.5% of the time compared with 9.1% for the rest, so the model would be cheating if it used that flag. We kept `shot_deflected` and `shot_statsbomb_xg` in the table to compare against and explore, but they will not go into the models. Shots from the same match have a lot in common, so the data has to be split by match.
+
+### B3. Preliminary figures
+
+![**Figure B1. Shot volume and goal rate by distance (analysis shots within 40 coordinate units of goal).** Left: number of shots in each 2-unit distance band. Right: share of those shots that were scored, with the overall 9.5% rate dashed.](figs/fig1_distance.png)
+
+Distance has the clearest link to scoring (Figure B1). The chance of a goal drops fast over the first 10 coordinate units, from over 70% inside 4 units to about 18% at 8 to 10 units, and then levels off below 5% past 22 units. The number of shots, though, stays almost the same from 8 out to 28 units, so a lot of shots are taken from places where they rarely go in. Since the curve is clearly not a straight line, we plan to use a log transform or splines in the logistic baseline, and it is also a reason to try tree-based models.
+
+![**Figure B2. Goal rate by shot location (analysis shots).** Each cell is 4 × 4 coordinate units; darker blue means a higher share of shots scored. Cells with fewer than 30 shots are left grey. The penalty area and goal area are outlined and the goal is at the top.](figs/fig2_shotmap.png)
+
+Figure B2 brings angle into the picture. Shots from a narrow strip in front of goal score the most, and the rate drops off quickly toward the sides even at the same distance. This matches Rathke (2017), who found distance and angle together work better than distance alone, so we will use both in the baseline.
+
+![**Figure B3. Goal rate by defensive context and by how the chance was created (analysis shots).** Left: `defenders_in_lane`, the number of opponents (excluding the goalkeeper) between the shooter and the posts at the moment of the shot. Right: type of key pass, for types with at least 200 shots.](figs/fig3_context.png)
+
+Figure B3 is an early sign that our hypothesis holds. When no defenders are in the lane, 13.8% of shots go in, compared with 4.6% to 5.8% when at least one defender is in the way. The type of pass before the shot matters too. Shots after a through ball go in 30.2% of the time, after a cross 14.3%, and after an ordinary pass only 7.1%. These are raw rates, and some of the gap is probably location, since through balls tend to lead to closer shots. The models in Weeks 5 and 6 will help pull these effects apart.
+
+**Table B4. Goal rate by the other freeze-frame features (analysis shots, n = 37,443)**
+
+| Feature | Value | Shots | Goal rate |
+|---|---|---:|---:|
+| `goalkeeper_in_lane` | True | 36,002 | 8.4% |
+| `goalkeeper_in_lane` | False | 1,447 | 37.3% |
+| `teammates_in_lane` | 0 | 31,593 | 10.4% |
+| `teammates_in_lane` | 1 | 4,812 | 4.7% |
+| `teammates_in_lane` | 2 or more | 1,044 | 4.7% |
+| `percent_of_goal_open` | 0 to 25% | 9,192 | 5.3% |
+| `percent_of_goal_open` | 25 to 50% | 11,077 | 7.5% |
+| `percent_of_goal_open` | 50 to 75% | 16,126 | 11.1% |
+| `percent_of_goal_open` | 75 to under 100% | 497 | 36.4% |
+| `percent_of_goal_open` | 100% (nothing blocking) | 557 | 48.3% |
+| `goalkeeper_distance_from_goal` | 0 to 2 units | 9,019 | 8.0% |
+| `goalkeeper_distance_from_goal` | 2 to 4 units | 17,650 | 7.6% |
+| `goalkeeper_distance_from_goal` | 4 to 6 units | 7,411 | 9.7% |
+| `goalkeeper_distance_from_goal` | 6 to 10 units | 2,493 | 21.8% |
+| `goalkeeper_distance_from_goal` | over 10 units | 876 | 27.1% |
+
+The goalkeeper's position turned out to be one of the strongest signals we have (Table B4). When the keeper is out of the shooting lane, 37.3% of shots go in, about four times the usual rate. It only happens on about 4% of shots, but it is clearly worth keeping. Since we dropped the 32 shots where the keeper was not in the frame, "False" here always means the keeper was there but out of position. Having a teammate in the lane cuts the goal rate about in half. One possible reason is that teammates can block the shot too, and crowded lanes are common after set pieces, which we will look into in the polished EDA. The goal rate also climbs steadily with `percent_of_goal_open`, from 5.3% when a quarter of the goal or less is open to 48.3% when nothing is blocking it, so this one feature sums up the defensive picture well. Goalkeeper distance from goal tells a similar story. Up to about 6 units off the line the goal rate barely changes, but once the keeper is more than 6 units out it jumps to 22% to 27%, usually because the keeper has rushed out or been caught out of position.
+
+### B4. Preliminary findings and implications
+
+- **What this changes in our plan.** Distance and angle have a strong but curved relationship with scoring (Figures B1 and B2), so the baseline will use reshaped versions of them. The freeze-frame and key-pass features show big differences in goal rate (Figure B3 and Table B4), so they are worth adding on top of location.
+- **Pressure is mixed up with distance.** At first glance `under_pressure` barely matters (9.2% of pressured shots go in versus 9.6% of the rest). But pressured shots are taken a lot closer to goal (median 14.6 versus 20.8 coordinate units). Inside 12 units, pressure cuts the goal rate about in half (13.6% versus 26.2%). So we cannot judge features one at a time; they have to be modeled together. This will make a good example in the polished EDA.
+- **Benchmarks.** On the 37,443 analysis shots, guessing the 9.5% average for every shot gives a log loss of 0.314 and a Brier score of 0.086 (lower is better for both). StatsBomb's xG gets a log loss of 0.247, a Brier score of 0.070 and a ROC AUC of 0.816. Our models should land somewhere between these two.
+- **Changes we recommend.** (1) Keep `is_goal` as the target, but only model non-penalty shots. (2) Keep `shot_deflected` and every other after-the-shot column out of the models. (3) Move the charter's third question, about differences between men's and women's soccer, to future work, since our data only covers men's leagues.
+
+### B5. Time between pass and shot from time of receipt
+
+We added `receipt_to_shot_seconds` and `receipt_to_shot_displacement` to `shots_analysis_df`. The first measures time from receiving the assisting pass to shooting, excluding pass travel time. The second measures straight-line displacement between those locations in StatsBomb coordinate units.
+
+The code links each shot to its assisting pass through `shot.key_pass_id`, then finds a successful `Ball Receipt*` using explicit event links. It checks the shooter and recipient, team, possession, period, event order and timestamps. Ambiguous links and sequences interrupted by another pass, shot, receipt, dispossession, miscontrol, interception or ball recovery are rejected.
+
+Both features were calculated for 26,993 of 37,443 shots (72.1%). The remaining 10,450 shots retain missing values: 10,435 have no assisting-pass link and 15 have an intervening on-ball event. Missing values were not replaced with zero. Six shots had an assisting pass but no valid linked receipt, so they were removed from the dataset (see B1).
+
+`shots_with_pass_receipt_df` retains the supporting event details and calculated features (57 columns). `shots_analysis_df` contains the original 38 columns plus the two new features (40 columns). Apart from the 6 removed shots, the existing shot records and target values are unchanged. Added predictive value has not yet been tested.
